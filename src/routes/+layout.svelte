@@ -38,22 +38,32 @@
 
 <style>
 	.page {
-		min-height: calc(100dvh - var(--header-h) - 64px);
-		padding-block: 28px 48px;
+		flex: 1;
+		width: 100%;
+		padding-block: 28px 40px;
 	}
 
 	.site-footer {
+		position: sticky;
+		bottom: 0;
+		z-index: 40;
+		min-height: var(--footer-h);
+		display: flex;
+		align-items: center;
+		background: color-mix(in srgb, var(--bg) 86%, transparent);
+		backdrop-filter: saturate(1.4) blur(10px);
 		border-top: 1px solid var(--border);
 		color: var(--text-muted);
-		font-size: 0.85rem;
+		font-size: 0.82rem;
 	}
 
 	.foot {
 		display: flex;
 		flex-wrap: wrap;
+		align-items: center;
 		justify-content: space-between;
 		gap: 8px;
-		padding-block: 20px;
+		padding-block: 10px;
 	}
 
 	.foot code {

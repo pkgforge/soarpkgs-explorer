@@ -284,7 +284,7 @@
 	.sidebar {
 		position: sticky;
 		top: calc(var(--header-h) + 20px);
-		max-height: calc(100dvh - var(--header-h) - 40px);
+		max-height: calc(100dvh - var(--header-h) - var(--footer-h) - 28px);
 		overflow-y: auto;
 		overscroll-behavior: contain;
 		padding-right: 8px;
