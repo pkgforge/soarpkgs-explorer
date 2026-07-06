@@ -148,6 +148,7 @@
 		align-items: center;
 		gap: 8px;
 		flex: 1;
+		min-width: 0;
 		max-width: 460px;
 		margin-inline: auto;
 		padding: 0 10px;

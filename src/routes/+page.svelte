@@ -337,6 +337,7 @@
 		font-family: var(--font-mono);
 		font-size: 0.86rem;
 		color: var(--text-dim);
+		white-space: nowrap;
 	}
 
 	.count .of {
@@ -538,6 +539,17 @@
 			background: var(--surface);
 			border: 1px solid var(--border);
 			border-radius: var(--radius);
+		}
+	}
+
+	@media (max-width: 540px) {
+		.toolbar {
+			flex-wrap: wrap;
+			gap: 10px 12px;
+		}
+
+		.sort {
+			margin-left: 0;
 		}
 	}
 </style>
