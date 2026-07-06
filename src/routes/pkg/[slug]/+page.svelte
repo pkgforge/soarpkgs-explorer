@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { base } from '$app/paths';
+	import CopyButton from '$lib/components/CopyButton.svelte';
 	import CopyCommand from '$lib/components/CopyCommand.svelte';
 	import {
 		archLabel,
@@ -7,16 +8,39 @@
 		formatSize,
 		hostLabel,
 		installCommand,
-		resolveVersion
+		resolveVersion,
+		runCommand
 	} from '$lib/format';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
 	const pkg = $derived(data.pkg);
-	const command = $derived(installCommand(pkg));
 	const primaryBuild = $derived(pkg.builds[pkg.arches[0]]);
 	const hasChecksums = $derived(pkg.arches.some((a) => pkg.builds[a]?.bsum));
+
+	// Deterministic hue so each package gets a stable identicon colour.
+	const hue = $derived.by(() => {
+		let h = 0;
+		for (const ch of pkg.pkg_name) h = (h * 31 + ch.charCodeAt(0)) % 360;
+		return h;
+	});
+	const initial = $derived(
+		pkg.pkg_name
+			.replace(/[^a-z0-9]/i, '')
+			.charAt(0)
+			.toUpperCase() || '?'
+	);
+
+	const links = $derived(
+		[
+			...pkg.homepages.map((url) => ({ url, label: hostLabel(url) })),
+			...pkg.source_urls.map((url) => ({ url, label: `Source · ${hostLabel(url)}` })),
+			primaryBuild?.webpage ? { url: primaryBuild.webpage, label: 'Package page' } : null,
+			primaryBuild?.ghcr_url ? { url: primaryBuild.ghcr_url, label: 'Container (GHCR)' } : null,
+			primaryBuild?.build_script ? { url: primaryBuild.build_script, label: 'Build recipe' } : null
+		].filter((l): l is { url: string; label: string } => l !== null)
+	);
 
 	// Older versions still installable, unified across architectures.
 	const snapshotRows = $derived.by(() => {
@@ -60,63 +84,92 @@
 <article class="detail">
 	<a class="back" href="{base}/">← All packages</a>
 
-	<header class="head">
-		<div class="title">
-			<h1>{pkg.pkg_name}</h1>
-			{#if pkg.pkg_type}
-				<a class="badge accent" href={browseLink('type', pkg.pkg_type)}>{pkg.pkg_type}</a>
+	<header class="hero">
+		<div class="icon" style="--hue: {hue}" aria-hidden="true">{initial}</div>
+		<div class="hero-body">
+			<div class="title">
+				<h1>{pkg.pkg_name}</h1>
+				{#if pkg.pkg_type}
+					<a class="badge accent" href={browseLink('type', pkg.pkg_type)}>{pkg.pkg_type}</a>
+				{/if}
+				{#if pkg.portable}<span class="badge">portable</span>{/if}
+				{#if pkg.desktop_integration}<span class="badge">desktop</span>{/if}
+			</div>
+			{#if pkg.description}
+				<p class="desc">{pkg.description}</p>
 			{/if}
-			{#if pkg.portable}<span class="badge">portable</span>{/if}
-			{#if pkg.desktop_integration}<span class="badge">desktop</span>{/if}
+			<p class="ids">
+				<span class="k">pkg_id</span> <code>{pkg.pkg_id}</code>
+				{#if pkg.pkg_family && pkg.pkg_family !== pkg.pkg_name}
+					<span class="sep">·</span> <span class="k">family</span> <code>{pkg.pkg_family}</code>
+				{/if}
+			</p>
 		</div>
-		{#if pkg.description}
-			<p class="desc">{pkg.description}</p>
-		{/if}
-		<p class="ids">
-			<span class="k">pkg_id</span> <code>{pkg.pkg_id}</code>
-			{#if pkg.pkg_family && pkg.pkg_family !== pkg.pkg_name}
-				<span class="sep">·</span> <span class="k">family</span> <code>{pkg.pkg_family}</code>
-			{/if}
-		</p>
 	</header>
+
+	<div class="stats">
+		<div class="stat">
+			<span class="stat-k">Version</span>
+			<span class="stat-v">{primaryBuild?.version ?? '—'}</span>
+		</div>
+		<div class="stat">
+			<span class="stat-k">Size</span>
+			<span class="stat-v">{formatSize(primaryBuild?.size ?? null)}</span>
+		</div>
+		<div class="stat">
+			<span class="stat-k">Arch</span>
+			<span class="stat-v">{pkg.arches.map(archLabel).join(' · ')}</span>
+		</div>
+		{#if pkg.licenses.length > 0}
+			<div class="stat">
+				<span class="stat-k">License</span>
+				<span class="stat-v">{pkg.licenses.join(', ')}</span>
+			</div>
+		{/if}
+		{#if primaryBuild?.build_date}
+			<div class="stat">
+				<span class="stat-k">Built</span>
+				<span class="stat-v">{formatDate(primaryBuild.build_date)}</span>
+			</div>
+		{/if}
+	</div>
 
 	<section class="install">
 		<h2>Install</h2>
-		<CopyCommand {command} />
+		<CopyCommand command={installCommand(pkg)} />
+		<p class="run-hint">Or run it once without installing:</p>
+		<CopyCommand command={runCommand(pkg)} />
 	</section>
 
 	<div class="columns">
 		<div class="main">
 			<section>
 				<h2>Downloads</h2>
-				<div class="table-wrap">
-					<table>
-						<thead>
-							<tr>
-								<th>Arch</th>
-								<th>Version</th>
-								<th>Size</th>
-								<th>Built</th>
-								<th></th>
-							</tr>
-						</thead>
-						<tbody>
-							{#each pkg.arches as arch (arch)}
-								{@const build = pkg.builds[arch]}
-								<tr>
-									<td><code>{archLabel(arch)}</code></td>
-									<td>{build?.version ?? '—'}</td>
-									<td>{formatSize(build?.size ?? null)}</td>
-									<td>{formatDate(build?.build_date ?? null)}</td>
-									<td>
-										{#if build?.download_url}
-											<a href={build.download_url} rel="noreferrer nofollow">Download</a>
-										{/if}
-									</td>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
+				<div class="builds">
+					{#each pkg.arches as arch (arch)}
+						{@const build = pkg.builds[arch]}
+						<div class="build">
+							<div class="build-top">
+								<code class="b-arch">{archLabel(arch)}</code>
+								{#if build}<span class="b-ver">{build.version}</span>{/if}
+								{#if build?.download_url}
+									<a class="b-dl" href={build.download_url} rel="noreferrer nofollow">Download</a>
+								{/if}
+							</div>
+							<div class="build-meta">
+								<span>{formatSize(build?.size ?? null)}</span>
+								<span class="dot">·</span>
+								<span>built {formatDate(build?.build_date ?? null)}</span>
+							</div>
+							{#if build?.bsum}
+								<div class="bsum">
+									<span class="bsum-k">b3sum</span>
+									<code class="bsum-v" title={build.bsum}>{build.bsum}</code>
+									<CopyButton text={build.bsum} label="Copy checksum" />
+								</div>
+							{/if}
+						</div>
+					{/each}
 				</div>
 			</section>
 
@@ -154,23 +207,6 @@
 				</section>
 			{/if}
 
-			{#if hasChecksums}
-				<section>
-					<h2>Checksums (b3sum)</h2>
-					<div class="checksums">
-						{#each pkg.arches as arch (arch)}
-							{@const build = pkg.builds[arch]}
-							{#if build?.bsum}
-								<div class="ck">
-									<code class="ck-arch">{archLabel(arch)}</code>
-									<code class="ck-sum" title={build.bsum}>{build.bsum}</code>
-								</div>
-							{/if}
-						{/each}
-					</div>
-				</section>
-			{/if}
-
 			{#if pkg.notes.length > 0}
 				<section>
 					<h2>Notes</h2>
@@ -183,93 +219,84 @@
 			{/if}
 		</div>
 
-		<aside class="facts">
-			{#if pkg.licenses.length > 0}
-				<div class="fact">
-					<span class="key">License</span>
-					<span class="val">{pkg.licenses.join(', ')}</span>
-				</div>
-			{/if}
-
-			{#if pkg.maintainers.length > 0}
-				<div class="fact">
-					<span class="key">Maintainers</span>
-					<span class="val chips">
-						{#each pkg.maintainers as m (m.contact)}
-							<a class="chip" href={browseLink('maint', m.name)}>{m.name}</a>
-						{/each}
-					</span>
-				</div>
-			{/if}
-
-			{#if pkg.categories.length > 0}
-				<div class="fact">
-					<span class="key">Categories</span>
-					<span class="val chips">
-						{#each pkg.categories as c (c)}
-							<a class="chip" href={browseLink('cat', c)}>{c}</a>
-						{/each}
-					</span>
-				</div>
-			{/if}
-
-			{#if pkg.tags.length > 0}
-				<div class="fact">
-					<span class="key">Tags</span>
-					<span class="val chips">
-						{#each pkg.tags as t (t)}
-							<a class="chip" href={browseLink('tag', t)}>{t}</a>
-						{/each}
-					</span>
-				</div>
-			{/if}
-
-			{#if pkg.provides.length > 0}
-				<div class="fact">
-					<span class="key">Provides</span>
-					<span class="val mono">{pkg.provides.map((p) => p.name).join(', ')}</span>
-				</div>
-			{/if}
-
-			{#if pkg.replaces.length > 0}
-				<div class="fact">
-					<span class="key">Replaces</span>
-					<span class="val mono">{pkg.replaces.join(', ')}</span>
-				</div>
-			{/if}
-
-			<div class="fact">
-				<span class="key">Links</span>
-				<span class="val links">
-					{#each pkg.homepages as url (url)}
-						<a href={url} rel="noreferrer">{hostLabel(url)}</a>
-					{/each}
-					{#each pkg.source_urls as url (url)}
-						<a href={url} rel="noreferrer">Source · {hostLabel(url)}</a>
-					{/each}
-					{#if primaryBuild?.webpage}
-						<a href={primaryBuild.webpage} rel="noreferrer">Package page</a>
+		<aside class="side">
+			<section class="panel">
+				<h2>Details</h2>
+				<dl class="facts">
+					{#if pkg.maintainers.length > 0}
+						<dt>Maintainers</dt>
+						<dd class="chips">
+							{#each pkg.maintainers as m (m.contact)}
+								<a class="chip" href={browseLink('maint', m.name)}>{m.name}</a>
+							{/each}
+						</dd>
 					{/if}
-					{#if primaryBuild?.ghcr_url}
-						<a href={primaryBuild.ghcr_url} rel="noreferrer">GHCR</a>
+					{#if pkg.categories.length > 0}
+						<dt>Categories</dt>
+						<dd class="chips">
+							{#each pkg.categories as c (c)}
+								<a class="chip" href={browseLink('cat', c)}>{c}</a>
+							{/each}
+						</dd>
 					{/if}
-					{#if primaryBuild?.build_script}
-						<a href={primaryBuild.build_script} rel="noreferrer">Recipe</a>
+					{#if pkg.tags.length > 0}
+						<dt>Tags</dt>
+						<dd class="chips">
+							{#each pkg.tags as t (t)}
+								<a class="chip" href={browseLink('tag', t)}>{t}</a>
+							{/each}
+						</dd>
 					{/if}
-				</span>
-			</div>
+					{#if pkg.provides.length > 0}
+						<dt>Provides</dt>
+						<dd class="mono">{pkg.provides.map((p) => p.name).join(', ')}</dd>
+					{/if}
+					{#if pkg.replaces.length > 0}
+						<dt>Replaces</dt>
+						<dd class="mono">{pkg.replaces.join(', ')}</dd>
+					{/if}
+				</dl>
+			</section>
+
+			{#if links.length > 0}
+				<section class="panel">
+					<h2>Links</h2>
+					<div class="links">
+						{#each links as link (link.url)}
+							<a class="link" href={link.url} rel="noreferrer">
+								<span>{link.label}</span>
+								<svg viewBox="0 0 24 24" width="14" height="14" fill="none" aria-hidden="true">
+									<path
+										d="M7 17 17 7M9 7h8v8"
+										stroke="currentColor"
+										stroke-width="1.7"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+									/>
+								</svg>
+							</a>
+						{/each}
+					</div>
+				</section>
+			{/if}
 		</aside>
 	</div>
+
+	{#if hasChecksums}
+		<p class="verify-note">
+			Checksums are b3sum (BLAKE3). Soar verifies them automatically on install.
+		</p>
+	{/if}
 </article>
 
 <style>
 	.detail {
-		max-width: 920px;
+		max-width: 960px;
 	}
 
 	.back {
 		display: inline-block;
-		margin-bottom: 18px;
+		margin-bottom: 20px;
 		font-size: 0.85rem;
 		color: var(--text-muted);
 	}
@@ -277,6 +304,31 @@
 	.back:hover {
 		color: var(--accent-strong);
 		text-decoration: none;
+	}
+
+	.hero {
+		display: flex;
+		gap: 18px;
+		align-items: flex-start;
+	}
+
+	.icon {
+		flex: none;
+		width: 60px;
+		height: 60px;
+		display: grid;
+		place-items: center;
+		font-family: var(--font-mono);
+		font-size: 1.7rem;
+		font-weight: 700;
+		color: #fff;
+		background: linear-gradient(
+			145deg,
+			hsl(var(--hue) 52% 52%),
+			hsl(calc(var(--hue) + 28) 54% 44%)
+		);
+		border-radius: 14px;
+		box-shadow: var(--shadow);
 	}
 
 	.title {
@@ -287,7 +339,7 @@
 	}
 
 	.title h1 {
-		font-size: clamp(1.6rem, 3.5vw, 2.2rem);
+		font-size: clamp(1.6rem, 3.5vw, 2.15rem);
 	}
 
 	.badge {
@@ -313,14 +365,14 @@
 	}
 
 	.desc {
-		margin: 12px 0 0;
+		margin: 10px 0 0;
 		font-size: 1.02rem;
 		color: var(--text-dim);
 	}
 
 	.ids {
 		margin: 10px 0 0;
-		font-size: 0.82rem;
+		font-size: 0.8rem;
 		color: var(--text-muted);
 	}
 
@@ -337,12 +389,49 @@
 		opacity: 0.5;
 	}
 
+	.stats {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 10px;
+		margin-top: 22px;
+	}
+
+	.stat {
+		display: flex;
+		flex-direction: column;
+		gap: 3px;
+		padding: 9px 14px;
+		min-width: 92px;
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+	}
+
+	.stat-k {
+		font-family: var(--font-mono);
+		font-size: 0.64rem;
+		text-transform: uppercase;
+		letter-spacing: 0.07em;
+		color: var(--text-muted);
+	}
+
+	.stat-v {
+		font-size: 0.9rem;
+		color: var(--text);
+	}
+
 	.install {
-		margin-top: 26px;
+		margin-top: 28px;
+	}
+
+	.run-hint {
+		margin: 12px 0 8px;
+		font-size: 0.84rem;
+		color: var(--text-muted);
 	}
 
 	h2 {
-		font-size: 0.78rem;
+		font-size: 0.76rem;
 		text-transform: uppercase;
 		letter-spacing: 0.08em;
 		color: var(--text-muted);
@@ -351,14 +440,100 @@
 
 	.columns {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) 260px;
-		gap: 32px;
-		margin-top: 28px;
+		grid-template-columns: minmax(0, 1fr) 272px;
+		gap: 30px;
+		margin-top: 30px;
 		align-items: start;
 	}
 
 	.main section + section {
 		margin-top: 28px;
+	}
+
+	.builds {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+		gap: 12px;
+	}
+
+	.build {
+		padding: 14px 16px;
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+	}
+
+	.build-top {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+	}
+
+	.b-arch {
+		font-family: var(--font-mono);
+		font-size: 0.86rem;
+		font-weight: 600;
+		color: var(--text);
+	}
+
+	.b-ver {
+		font-family: var(--font-mono);
+		font-size: 0.78rem;
+		color: var(--text-muted);
+	}
+
+	.b-dl {
+		margin-left: auto;
+		padding: 4px 12px;
+		font-size: 0.8rem;
+		color: var(--accent-contrast);
+		background: var(--accent);
+		border-radius: var(--radius-sm);
+	}
+
+	.b-dl:hover {
+		background: var(--accent-strong);
+		text-decoration: none;
+	}
+
+	.build-meta {
+		display: flex;
+		gap: 7px;
+		margin-top: 8px;
+		font-family: var(--font-mono);
+		font-size: 0.76rem;
+		color: var(--text-muted);
+	}
+
+	.build-meta .dot {
+		opacity: 0.5;
+	}
+
+	.bsum {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin-top: 12px;
+		padding-top: 12px;
+		border-top: 1px solid var(--border);
+	}
+
+	.bsum-k {
+		font-family: var(--font-mono);
+		font-size: 0.64rem;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: var(--text-muted);
+	}
+
+	.bsum-v {
+		flex: 1;
+		min-width: 0;
+		font-size: 0.74rem;
+		color: var(--text-dim);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.table-wrap {
@@ -398,29 +573,6 @@
 		color: var(--text-muted);
 	}
 
-	.checksums {
-		display: flex;
-		flex-direction: column;
-		gap: 8px;
-	}
-
-	.ck {
-		display: flex;
-		align-items: baseline;
-		gap: 10px;
-		font-size: 0.8rem;
-	}
-
-	.ck-arch {
-		flex: none;
-		color: var(--text-dim);
-	}
-
-	.ck-sum {
-		color: var(--text-muted);
-		overflow-wrap: anywhere;
-	}
-
 	.notes {
 		margin: 0;
 		padding-left: 18px;
@@ -432,46 +584,56 @@
 		margin-bottom: 6px;
 	}
 
-	.facts {
+	.side {
 		display: flex;
 		flex-direction: column;
 		gap: 16px;
+	}
+
+	.panel {
 		padding: 18px;
 		background: var(--surface);
 		border: 1px solid var(--border);
 		border-radius: var(--radius);
 	}
 
-	.fact {
+	.facts {
 		display: flex;
 		flex-direction: column;
-		gap: 6px;
+		gap: 4px;
+		margin: 0;
 	}
 
-	.key {
+	.facts dt {
 		font-family: var(--font-mono);
-		font-size: 0.7rem;
+		font-size: 0.68rem;
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
 		color: var(--text-muted);
+		margin-top: 12px;
 	}
 
-	.val {
+	.facts dt:first-child {
+		margin-top: 0;
+	}
+
+	.facts dd {
+		margin: 0;
 		font-size: 0.88rem;
 		color: var(--text-dim);
 	}
 
-	.val.mono {
+	.facts dd.mono {
 		font-family: var(--font-mono);
 		font-size: 0.82rem;
 		overflow-wrap: anywhere;
 	}
 
-	.chips,
-	.links {
+	.chips {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 6px;
+		margin-top: 6px;
 	}
 
 	.chip {
@@ -490,11 +652,41 @@
 	}
 
 	.links {
+		display: flex;
 		flex-direction: column;
-		gap: 4px;
+		gap: 2px;
 	}
 
-	@media (max-width: 720px) {
+	.link {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 10px;
+		padding: 8px 10px;
+		margin: 0 -10px;
+		font-size: 0.88rem;
+		color: var(--text-dim);
+		border-radius: var(--radius-sm);
+	}
+
+	.link svg {
+		flex: none;
+		color: var(--text-muted);
+	}
+
+	.link:hover {
+		color: var(--accent-strong);
+		background: var(--surface-2);
+		text-decoration: none;
+	}
+
+	.verify-note {
+		margin-top: 26px;
+		font-size: 0.8rem;
+		color: var(--text-muted);
+	}
+
+	@media (max-width: 760px) {
 		.columns {
 			grid-template-columns: 1fr;
 			gap: 24px;

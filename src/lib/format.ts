@@ -1,16 +1,27 @@
 /** Small presentation helpers shared across the UI. */
 import type { Arch, Package } from '$lib/types';
 
+type PackageRef = Pick<Package, 'slug' | 'pkg_name' | 'pkg_id'>;
+
 /**
- * Build the `soar install` command for a package.
+ * Unambiguous soar package reference.
  *
  * Soar accepts `name#pkg_id@version:repo`; the `#pkg_id` form is used only when
  * the package name is shared by more than one package (its slug differs from
- * the name), so the command stays unambiguous.
+ * the name), so commands stay unambiguous.
  */
-export function installCommand(pkg: Pick<Package, 'slug' | 'pkg_name' | 'pkg_id'>): string {
-	const ref = pkg.slug === pkg.pkg_name ? pkg.pkg_name : `${pkg.pkg_name}#${pkg.pkg_id}`;
-	return `soar install ${ref}`;
+export function packageRef(pkg: PackageRef): string {
+	return pkg.slug === pkg.pkg_name ? pkg.pkg_name : `${pkg.pkg_name}#${pkg.pkg_id}`;
+}
+
+/** The `soar install` command for a package. */
+export function installCommand(pkg: PackageRef): string {
+	return `soar install ${packageRef(pkg)}`;
+}
+
+/** The `soar run` command (runs without installing to PATH). */
+export function runCommand(pkg: PackageRef): string {
+	return `soar run ${packageRef(pkg)}`;
 }
 
 /** Format a byte count as a compact human-readable size. */
