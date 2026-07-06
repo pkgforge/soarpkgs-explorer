@@ -41,6 +41,17 @@
 		await goto(urlWithQuery(query), { keepFocus: true, noScroll: true });
 	}
 
+	function onSearchKeydown(event: KeyboardEvent) {
+		if (event.key !== 'Escape') return;
+		if (query) {
+			query = '';
+			clearTimeout(timer);
+			if (onHome) goto(urlWithQuery(''), { replaceState: true, keepFocus: true, noScroll: true });
+		} else {
+			input?.blur();
+		}
+	}
+
 	function onKeydown(event: KeyboardEvent) {
 		if (event.key !== '/' || event.metaKey || event.ctrlKey || event.altKey) return;
 		const el = event.target as HTMLElement | null;
@@ -70,6 +81,7 @@
 				bind:this={input}
 				bind:value={query}
 				oninput={onInput}
+				onkeydown={onSearchKeydown}
 				type="search"
 				name="q"
 				placeholder="Search packages"

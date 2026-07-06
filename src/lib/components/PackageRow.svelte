@@ -86,6 +86,12 @@
 		border-color: transparent;
 	}
 
+	.type-onelf {
+		color: #8a7ee6;
+		background: color-mix(in srgb, #8a7ee6 15%, transparent);
+		border-color: transparent;
+	}
+
 	.desc {
 		font-size: 0.86rem;
 		color: var(--text-dim);

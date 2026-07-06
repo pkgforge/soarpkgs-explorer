@@ -246,6 +246,16 @@
 
 		{#if results.length === 0}
 			<div class="empty">
+				<svg viewBox="0 0 24 24" width="34" height="34" fill="none" aria-hidden="true">
+					<circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.6" />
+					<path
+						d="m16.5 16.5 4 4"
+						stroke="currentColor"
+						stroke-width="1.6"
+						stroke-linecap="round"
+					/>
+					<path d="M8.5 11h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+				</svg>
 				<p class="empty-title">No packages found</p>
 				<p>Try a different search or clear your filters.</p>
 			</div>
@@ -483,11 +493,21 @@
 	}
 
 	.empty {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 6px;
 		padding: 64px 24px;
 		text-align: center;
 		color: var(--text-muted);
 		border: 1px dashed var(--border-strong);
 		border-radius: var(--radius);
+	}
+
+	.empty svg {
+		margin-bottom: 6px;
+		color: var(--text-muted);
+		opacity: 0.7;
 	}
 
 	.empty-title {
