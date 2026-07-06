@@ -19,6 +19,17 @@
 	const primaryBuild = $derived(pkg.builds[pkg.arches[0]]);
 	const hasChecksums = $derived(pkg.arches.some((a) => pkg.builds[a]?.bsum));
 
+	// Version is usually shared across arches; fall back to "varies" if not.
+	const versions = $derived([
+		...new Set(pkg.arches.map((a) => pkg.builds[a]?.version).filter(Boolean))
+	]);
+	const versionLabel = $derived(versions.length === 1 ? versions[0] : 'varies');
+	// Most recent build across all architectures.
+	const lastBuilt = $derived.by(() => {
+		const dates = pkg.arches.map((a) => pkg.builds[a]?.build_date).filter((d): d is string => !!d);
+		return dates.length ? dates.reduce((a, b) => (a > b ? a : b)) : null;
+	});
+
 	// Deterministic hue so each package gets a stable identicon colour.
 	const hue = $derived.by(() => {
 		let h = 0;
@@ -32,15 +43,18 @@
 			.toUpperCase() || '?'
 	);
 
-	const links = $derived(
-		[
+	const links = $derived.by(() => {
+		const candidates = [
 			...pkg.homepages.map((url) => ({ url, label: hostLabel(url) })),
 			...pkg.source_urls.map((url) => ({ url, label: `Source · ${hostLabel(url)}` })),
 			primaryBuild?.webpage ? { url: primaryBuild.webpage, label: 'Package page' } : null,
 			primaryBuild?.ghcr_url ? { url: primaryBuild.ghcr_url, label: 'Container (GHCR)' } : null,
 			primaryBuild?.build_script ? { url: primaryBuild.build_script, label: 'Build recipe' } : null
-		].filter((l): l is { url: string; label: string } => l !== null)
-	);
+		].filter((l): l is { url: string; label: string } => l !== null);
+		// A URL can appear as both homepage and source; show it only once.
+		const seen = new Set<string>();
+		return candidates.filter((l) => (seen.has(l.url) ? false : seen.add(l.url)));
+	});
 
 	// Older versions still installable, unified across architectures.
 	const snapshotRows = $derived.by(() => {
@@ -110,14 +124,10 @@
 	<div class="stats">
 		<div class="stat">
 			<span class="stat-k">Version</span>
-			<span class="stat-v">{primaryBuild?.version ?? '—'}</span>
+			<span class="stat-v">{versionLabel}</span>
 		</div>
 		<div class="stat">
-			<span class="stat-k">Size</span>
-			<span class="stat-v">{formatSize(primaryBuild?.size ?? null)}</span>
-		</div>
-		<div class="stat">
-			<span class="stat-k">Arch</span>
+			<span class="stat-k">Architectures</span>
 			<span class="stat-v">{pkg.arches.map(archLabel).join(' · ')}</span>
 		</div>
 		{#if pkg.licenses.length > 0}
@@ -126,10 +136,10 @@
 				<span class="stat-v">{pkg.licenses.join(', ')}</span>
 			</div>
 		{/if}
-		{#if primaryBuild?.build_date}
+		{#if lastBuilt}
 			<div class="stat">
-				<span class="stat-k">Built</span>
-				<span class="stat-v">{formatDate(primaryBuild.build_date)}</span>
+				<span class="stat-k">Last built</span>
+				<span class="stat-v">{formatDate(lastBuilt)}</span>
 			</div>
 		{/if}
 	</div>
@@ -171,6 +181,11 @@
 						</div>
 					{/each}
 				</div>
+				{#if hasChecksums}
+					<p class="build-note">
+						Checksums are b3sum (BLAKE3). Soar verifies them automatically on install.
+					</p>
+				{/if}
 			</section>
 
 			{#if snapshotRows.length > 0}
@@ -281,12 +296,6 @@
 			{/if}
 		</aside>
 	</div>
-
-	{#if hasChecksums}
-		<p class="verify-note">
-			Checksums are b3sum (BLAKE3). Soar verifies them automatically on install.
-		</p>
-	{/if}
 </article>
 
 <style>
@@ -680,9 +689,9 @@
 		text-decoration: none;
 	}
 
-	.verify-note {
-		margin-top: 26px;
-		font-size: 0.8rem;
+	.build-note {
+		margin: 12px 0 0;
+		font-size: 0.78rem;
 		color: var(--text-muted);
 	}
 
