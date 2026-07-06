@@ -28,3 +28,7 @@ vite.config.ts.timestamp-*
 # Build-time generated data and downloaded metadata
 /src/lib/generated
 /.metadata-cache
+
+# Local screenshots / browser automation artifacts
+/.playwright-mcp
+/*.png

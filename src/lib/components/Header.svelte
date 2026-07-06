@@ -1,21 +1,44 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { page } from '$app/state';
 	import { datasetMeta } from '$lib/catalog';
 	import ThemeToggle from './ThemeToggle.svelte';
 
 	let input = $state<HTMLInputElement | null>(null);
 	let query = $state('');
+	let timer: ReturnType<typeof setTimeout> | undefined;
+
+	const home = `${base}/`;
+	const onHome = $derived(page.url.pathname === home);
 
 	// Keep the field in sync with the URL query so search state is shareable.
 	$effect(() => {
 		query = page.url.searchParams.get('q') ?? '';
 	});
 
+	/** Preserve any active filters/sort while replacing just the query. */
+	function urlWithQuery(q: string): string {
+		const params = new URLSearchParams(page.url.search);
+		if (q.trim()) params.set('q', q.trim());
+		else params.delete('q');
+		const search = params.toString();
+		return search ? `${home}?${search}` : home;
+	}
+
+	function onInput() {
+		if (!onHome) return;
+		// Live-filter the browse page as the user types.
+		clearTimeout(timer);
+		timer = setTimeout(() => {
+			goto(urlWithQuery(query), { replaceState: true, keepFocus: true, noScroll: true });
+		}, 90);
+	}
+
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
-		const q = query.trim();
-		await goto(q ? `/?q=${encodeURIComponent(q)}` : '/', { keepFocus: true });
+		clearTimeout(timer);
+		await goto(urlWithQuery(query), { keepFocus: true, noScroll: true });
 	}
 
 	function onKeydown(event: KeyboardEvent) {
@@ -46,6 +69,7 @@
 			<input
 				bind:this={input}
 				bind:value={query}
+				oninput={onInput}
 				type="search"
 				name="q"
 				placeholder="Search packages"

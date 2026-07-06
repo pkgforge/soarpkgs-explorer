@@ -10,7 +10,10 @@ export default defineConfig({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			adapter: adapter()
+			adapter: adapter(),
+			// Prerender explicit routes and per-page entries rather than crawling
+			// links, so pages generate independently as they are added.
+			prerender: { crawl: false }
 		})
 	]
 });

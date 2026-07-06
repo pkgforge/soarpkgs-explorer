@@ -73,6 +73,7 @@ export interface SearchEntry {
 	arches: Arch[];
 	version: string;
 	size: number | null;
+	updated: string | null;
 }
 
 /** Precomputed facet values for filtering the listing. */
