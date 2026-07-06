@@ -29,6 +29,22 @@ bun run format    # format with prettier
 (git-ignored). Set `SOARPKGS_RELEASE` to a release tag to pin a specific
 metadata snapshot; otherwise the latest release is used.
 
+## Deployment
+
+The site is fully static and deploys to Cloudflare Pages via GitHub Actions
+(`.github/workflows/deploy.yml`). The workflow builds and deploys on push to
+`main`, on a 6-hourly schedule to pick up new metadata releases, on manual
+dispatch, and on a `metadata-release` repository dispatch. A failed build never
+deploys.
+
+One-time setup:
+
+- Create a Cloudflare Pages project named `soarpkgs-explorer`.
+- Add repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
+
+For instant rebuilds when new metadata is published, have the soarpkgs release
+workflow send a `repository_dispatch` of type `metadata-release` to this repo.
+
 ## Tech
 
 - SvelteKit + `@sveltejs/adapter-static`, fully prerendered

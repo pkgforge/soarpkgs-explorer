@@ -10,7 +10,9 @@ export default defineConfig({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			adapter: adapter(),
+			// `404.html` is emitted so Cloudflare Pages serves a branded
+			// not-found page for unknown paths.
+			adapter: adapter({ fallback: '404.html' }),
 			// Prerender explicit routes and per-page entries rather than crawling
 			// links, so pages generate independently as they are added.
 			prerender: { crawl: false }

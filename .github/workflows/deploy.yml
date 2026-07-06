@@ -1,0 +1,47 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  # Rebuild periodically to pick up new soarpkgs metadata releases.
+  schedule:
+    - cron: '0 */6 * * *'
+  # Allow soarpkgs' release workflow to trigger an immediate rebuild.
+  repository_dispatch:
+    types: [metadata-release]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Never run two deploys at once; always ship the newest build.
+concurrency:
+  group: deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up tools
+        uses: jdx/mise-action@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build site
+        run: bun run build
+        env:
+          # Authenticated requests avoid GitHub API rate limits when
+          # fetching and verifying the metadata release.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Deploy runs only if the build succeeded, so a failed build never ships.
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy build --project-name=soarpkgs-explorer
