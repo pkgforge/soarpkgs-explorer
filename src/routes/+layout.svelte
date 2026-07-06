@@ -4,11 +4,24 @@
 	import Header from '$lib/components/Header.svelte';
 	import { datasetMeta } from '$lib/catalog';
 	import { initTheme } from '$lib/theme.svelte';
+	import { onNavigate } from '$app/navigation';
 	import { onMount } from 'svelte';
 
 	let { children } = $props();
 
 	onMount(initTheme);
+
+	// Smooth cross-fade between pages where the browser supports it.
+	onNavigate((navigation) => {
+		const startViewTransition = document.startViewTransition?.bind(document);
+		if (!startViewTransition) return;
+		return new Promise((resolve) => {
+			startViewTransition(async () => {
+				resolve();
+				await navigation.complete;
+			});
+		});
+	});
 </script>
 
 <svelte:head>

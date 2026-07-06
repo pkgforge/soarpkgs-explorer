@@ -101,6 +101,17 @@ html {
 		transition-duration: 0.01ms !important;
 		animation-duration: 0.01ms !important;
 	}
+
+	::view-transition-group(*),
+	::view-transition-old(*),
+	::view-transition-new(*) {
+		animation: none !important;
+	}
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+	animation-duration: 180ms;
 }
 
 body {
