@@ -32,6 +32,11 @@ export function archLabel(arch: Arch | string): string {
 	return arch.replace(/-linux$/, '');
 }
 
+/** Resolve a `{{version}}` placeholder in a URL template. */
+export function resolveVersion(template: string, version: string): string {
+	return template.replaceAll('{{version}}', version);
+}
+
 /** Host label for a URL, e.g. `https://alacritty.org/x` -> `alacritty.org`. */
 export function hostLabel(url: string): string {
 	try {

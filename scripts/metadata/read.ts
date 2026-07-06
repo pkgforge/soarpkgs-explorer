@@ -19,6 +19,7 @@ export interface ArchPackageRow {
 	notes: string[];
 	provides: Provide[];
 	maintainers: Maintainer[];
+	replaces: string[];
 	desktop_integration: boolean | null;
 	portable: boolean | null;
 	build: ArchBuild;
@@ -30,6 +31,7 @@ interface RawRow {
 	pkg_name: string;
 	pkg_type: string | null;
 	app_id: string | null;
+	pkg_webpage: string | null;
 	description: string | null;
 	version: string;
 	size: number | null;
@@ -51,12 +53,14 @@ interface RawRow {
 	tags: string;
 	categories: string;
 	provides: string;
+	snapshots: string;
+	replaces: string;
 	maintainers: string | null;
 }
 
 const QUERY = `
 	SELECT
-		p.pkg_id, p.pkg_family, p.pkg_name, p.pkg_type, p.app_id, p.description,
+		p.pkg_id, p.pkg_family, p.pkg_name, p.pkg_type, p.app_id, p.pkg_webpage, p.description,
 		p.version, p.size, p.download_url,
 		p.ghcr_pkg, p.ghcr_url, p.ghcr_size, p.ghcr_blob, p.bsum,
 		p.build_id, p.build_date, p.build_script,
@@ -68,6 +72,8 @@ const QUERY = `
 		json(p.tags) AS tags,
 		json(p.categories) AS categories,
 		json(p.provides) AS provides,
+		json(p.snapshots) AS snapshots,
+		json(p.replaces) AS replaces,
 		(
 			SELECT json_group_array(json_object('name', m.name, 'contact', m.contact))
 			FROM package_maintainers pm
@@ -112,6 +118,8 @@ export function readArch(dbPath: string, arch: Arch, warnings: Set<string>): Arc
 				version,
 				size: r.size,
 				download_url: resolvePlaceholders(r.download_url, version, warnings) ?? r.download_url,
+				download_url_template: r.download_url,
+				webpage: r.pkg_webpage,
 				ghcr_pkg: resolvePlaceholders(r.ghcr_pkg, version, warnings),
 				ghcr_url: r.ghcr_url,
 				ghcr_size: r.ghcr_size,
@@ -119,7 +127,8 @@ export function readArch(dbPath: string, arch: Arch, warnings: Set<string>): Arc
 				bsum: r.bsum,
 				build_id: r.build_id,
 				build_date: r.build_date,
-				build_script: r.build_script
+				build_script: r.build_script,
+				snapshots: parseArray<string>(r.snapshots)
 			};
 			return {
 				arch,
@@ -137,6 +146,7 @@ export function readArch(dbPath: string, arch: Arch, warnings: Set<string>): Arc
 				notes: parseArray<string>(r.notes),
 				provides: parseArray<Provide>(r.provides),
 				maintainers: parseArray<Maintainer>(r.maintainers),
+				replaces: parseArray<string>(r.replaces),
 				desktop_integration: toBool(r.desktop_integration),
 				portable: toBool(r.portable),
 				build

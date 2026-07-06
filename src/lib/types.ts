@@ -27,6 +27,9 @@ export interface ArchBuild {
 	version: string;
 	size: number | null;
 	download_url: string;
+	/** Raw download URL with a `{{version}}` placeholder, for resolving snapshots. */
+	download_url_template: string;
+	webpage: string | null;
 	ghcr_pkg: string | null;
 	ghcr_url: string | null;
 	ghcr_size: number | null;
@@ -35,6 +38,8 @@ export interface ArchBuild {
 	build_id: string | null;
 	build_date: string | null;
 	build_script: string | null;
+	/** Older versions still installable for this architecture. */
+	snapshots: string[];
 }
 
 /** A canonical package, merged across the architectures it is available for. */
@@ -54,6 +59,7 @@ export interface Package {
 	notes: string[];
 	provides: Provide[];
 	maintainers: Maintainer[];
+	replaces: string[];
 	desktop_integration: boolean | null;
 	portable: boolean | null;
 	arches: Arch[];

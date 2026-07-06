@@ -1,7 +1,14 @@
 <script lang="ts">
 	import { base } from '$app/paths';
 	import CopyCommand from '$lib/components/CopyCommand.svelte';
-	import { archLabel, formatDate, formatSize, hostLabel, installCommand } from '$lib/format';
+	import {
+		archLabel,
+		formatDate,
+		formatSize,
+		hostLabel,
+		installCommand,
+		resolveVersion
+	} from '$lib/format';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -9,6 +16,33 @@
 	const pkg = $derived(data.pkg);
 	const command = $derived(installCommand(pkg));
 	const primaryBuild = $derived(pkg.builds[pkg.arches[0]]);
+	const hasChecksums = $derived(pkg.arches.some((a) => pkg.builds[a]?.bsum));
+
+	// Older versions still installable, unified across architectures.
+	const snapshotRows = $derived.by(() => {
+		const current = new Set(pkg.arches.map((a) => pkg.builds[a]?.version));
+		const seen = new Set<string>();
+		const versions: string[] = [];
+		for (const arch of pkg.arches) {
+			for (const v of pkg.builds[arch]?.snapshots ?? []) {
+				if (!current.has(v) && !seen.has(v)) {
+					seen.add(v);
+					versions.push(v);
+				}
+			}
+		}
+		return versions.map((version) => ({
+			version,
+			downloads: pkg.arches.map((arch) => {
+				const build = pkg.builds[arch];
+				const available = !!build && build.snapshots.includes(version);
+				return {
+					arch,
+					url: available ? resolveVersion(build.download_url_template, version) : null
+				};
+			})
+		}));
+	});
 
 	function browseLink(param: string, value: string): string {
 		return `${base}/?${param}=${encodeURIComponent(value)}`;
@@ -30,14 +64,20 @@
 		<div class="title">
 			<h1>{pkg.pkg_name}</h1>
 			{#if pkg.pkg_type}
-				<a class="badge" href={browseLink('type', pkg.pkg_type)}>{pkg.pkg_type}</a>
+				<a class="badge accent" href={browseLink('type', pkg.pkg_type)}>{pkg.pkg_type}</a>
 			{/if}
-			{#if pkg.portable}<span class="tagline">portable</span>{/if}
+			{#if pkg.portable}<span class="badge">portable</span>{/if}
+			{#if pkg.desktop_integration}<span class="badge">desktop</span>{/if}
 		</div>
 		{#if pkg.description}
 			<p class="desc">{pkg.description}</p>
 		{/if}
-		<p class="pkgid"><span>pkg_id</span> <code>{pkg.pkg_id}</code></p>
+		<p class="ids">
+			<span class="k">pkg_id</span> <code>{pkg.pkg_id}</code>
+			{#if pkg.pkg_family && pkg.pkg_family !== pkg.pkg_name}
+				<span class="sep">·</span> <span class="k">family</span> <code>{pkg.pkg_family}</code>
+			{/if}
+		</p>
 	</header>
 
 	<section class="install">
@@ -48,7 +88,7 @@
 	<div class="columns">
 		<div class="main">
 			<section>
-				<h2>Availability</h2>
+				<h2>Downloads</h2>
 				<div class="table-wrap">
 					<table>
 						<thead>
@@ -79,6 +119,57 @@
 					</table>
 				</div>
 			</section>
+
+			{#if snapshotRows.length > 0}
+				<section>
+					<h2>Previous versions</h2>
+					<div class="table-wrap">
+						<table>
+							<thead>
+								<tr>
+									<th>Version</th>
+									{#each pkg.arches as arch (arch)}
+										<th>{archLabel(arch)}</th>
+									{/each}
+								</tr>
+							</thead>
+							<tbody>
+								{#each snapshotRows as row (row.version)}
+									<tr>
+										<td><code>{row.version}</code></td>
+										{#each row.downloads as dl (dl.arch)}
+											<td>
+												{#if dl.url}
+													<a href={dl.url} rel="noreferrer nofollow">Download</a>
+												{:else}
+													<span class="na">—</span>
+												{/if}
+											</td>
+										{/each}
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+				</section>
+			{/if}
+
+			{#if hasChecksums}
+				<section>
+					<h2>Checksums (b3sum)</h2>
+					<div class="checksums">
+						{#each pkg.arches as arch (arch)}
+							{@const build = pkg.builds[arch]}
+							{#if build?.bsum}
+								<div class="ck">
+									<code class="ck-arch">{archLabel(arch)}</code>
+									<code class="ck-sum" title={build.bsum}>{build.bsum}</code>
+								</div>
+							{/if}
+						{/each}
+					</div>
+				</section>
+			{/if}
 
 			{#if pkg.notes.length > 0}
 				<section>
@@ -140,6 +231,13 @@
 				</div>
 			{/if}
 
+			{#if pkg.replaces.length > 0}
+				<div class="fact">
+					<span class="key">Replaces</span>
+					<span class="val mono">{pkg.replaces.join(', ')}</span>
+				</div>
+			{/if}
+
 			<div class="fact">
 				<span class="key">Links</span>
 				<span class="val links">
@@ -149,6 +247,9 @@
 					{#each pkg.source_urls as url (url)}
 						<a href={url} rel="noreferrer">Source · {hostLabel(url)}</a>
 					{/each}
+					{#if primaryBuild?.webpage}
+						<a href={primaryBuild.webpage} rel="noreferrer">Package page</a>
+					{/if}
 					{#if primaryBuild?.ghcr_url}
 						<a href={primaryBuild.ghcr_url} rel="noreferrer">GHCR</a>
 					{/if}
@@ -163,7 +264,7 @@
 
 <style>
 	.detail {
-		max-width: 900px;
+		max-width: 920px;
 	}
 
 	.back {
@@ -181,7 +282,7 @@
 	.title {
 		display: flex;
 		align-items: center;
-		gap: 12px;
+		gap: 10px;
 		flex-wrap: wrap;
 	}
 
@@ -195,39 +296,45 @@
 		font-size: 0.72rem;
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
+		color: var(--text-dim);
+		background: var(--surface-2);
+		border: 1px solid var(--border);
+		border-radius: 999px;
+	}
+
+	.badge.accent {
 		color: var(--accent-strong);
 		background: var(--accent-soft);
-		border-radius: 999px;
+		border-color: transparent;
 	}
 
 	.badge:hover {
 		text-decoration: none;
 	}
 
-	.tagline {
-		font-family: var(--font-mono);
-		font-size: 0.72rem;
-		color: var(--text-muted);
-	}
-
 	.desc {
-		margin: 10px 0 0;
+		margin: 12px 0 0;
 		font-size: 1.02rem;
 		color: var(--text-dim);
 	}
 
-	.pkgid {
+	.ids {
 		margin: 10px 0 0;
 		font-size: 0.82rem;
 		color: var(--text-muted);
 	}
 
-	.pkgid span {
+	.ids .k {
 		font-family: var(--font-mono);
 	}
 
-	.pkgid code {
+	.ids code {
 		color: var(--text-dim);
+	}
+
+	.ids .sep {
+		margin: 0 6px;
+		opacity: 0.5;
 	}
 
 	.install {
@@ -287,6 +394,33 @@
 		border-bottom: none;
 	}
 
+	.na {
+		color: var(--text-muted);
+	}
+
+	.checksums {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.ck {
+		display: flex;
+		align-items: baseline;
+		gap: 10px;
+		font-size: 0.8rem;
+	}
+
+	.ck-arch {
+		flex: none;
+		color: var(--text-dim);
+	}
+
+	.ck-sum {
+		color: var(--text-muted);
+		overflow-wrap: anywhere;
+	}
+
 	.notes {
 		margin: 0;
 		padding-left: 18px;
@@ -330,6 +464,7 @@
 	.val.mono {
 		font-family: var(--font-mono);
 		font-size: 0.82rem;
+		overflow-wrap: anywhere;
 	}
 
 	.chips,
