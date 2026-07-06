@@ -5,7 +5,7 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="text-scale" content="scale" />
 		<script>
-			// Apply the persisted or preferred theme before first paint to avoid a flash.
+			// Apply persisted theme and view before first paint to avoid a flash.
 			(function () {
 				try {
 					var stored = localStorage.getItem('theme');
@@ -13,6 +13,8 @@
 					var theme = stored === 'light' || stored === 'dark' ? stored : dark ? 'dark' : 'light';
 					document.documentElement.dataset.theme = theme;
 					document.documentElement.style.colorScheme = theme;
+					document.documentElement.dataset.view =
+						localStorage.getItem('view') === 'list' ? 'list' : 'grid';
 				} catch (e) {}
 			})();
 		</script>

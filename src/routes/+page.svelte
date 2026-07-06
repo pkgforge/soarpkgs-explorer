@@ -5,7 +5,10 @@
 	import { page } from '$app/state';
 	import FacetGroup from '$lib/components/FacetGroup.svelte';
 	import PackageCard from '$lib/components/PackageCard.svelte';
+	import PackageRow from '$lib/components/PackageRow.svelte';
 	import { datasetMeta, facets, searchEntries } from '$lib/catalog';
+	import { getView, initView, setView } from '$lib/view.svelte';
+	import { onMount } from 'svelte';
 	import { archLabel } from '$lib/format';
 	import {
 		activeFilterCount,
@@ -24,8 +27,14 @@
 	const results = $derived(queryEntries(searchEntries, view));
 	const filterCount = $derived(activeFilterCount(view));
 
-	let resultsEl = $state<HTMLElement | null>(null);
+	let gridEl = $state<HTMLElement | null>(null);
+	let listEl = $state<HTMLElement | null>(null);
 	let filtersOpen = $state(false);
+	const viewMode = $derived(getView());
+	// Both layouts are rendered; CSS shows one. Keyboard nav targets the active.
+	const resultsEl = $derived(viewMode === 'list' ? listEl : gridEl);
+
+	onMount(initView);
 
 	const facetConfig: {
 		key: FacetKey;
@@ -157,6 +166,71 @@
 					<option value="updated">Recently built</option>
 				</select>
 			</label>
+
+			<div class="view-toggle" role="group" aria-label="View mode">
+				<button
+					type="button"
+					class:active={viewMode === 'grid'}
+					aria-pressed={viewMode === 'grid'}
+					aria-label="Grid view"
+					onclick={() => setView('grid')}
+				>
+					<svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true">
+						<rect
+							x="3.5"
+							y="3.5"
+							width="7"
+							height="7"
+							rx="1.5"
+							stroke="currentColor"
+							stroke-width="1.7"
+						/>
+						<rect
+							x="13.5"
+							y="3.5"
+							width="7"
+							height="7"
+							rx="1.5"
+							stroke="currentColor"
+							stroke-width="1.7"
+						/>
+						<rect
+							x="3.5"
+							y="13.5"
+							width="7"
+							height="7"
+							rx="1.5"
+							stroke="currentColor"
+							stroke-width="1.7"
+						/>
+						<rect
+							x="13.5"
+							y="13.5"
+							width="7"
+							height="7"
+							rx="1.5"
+							stroke="currentColor"
+							stroke-width="1.7"
+						/>
+					</svg>
+				</button>
+				<button
+					type="button"
+					class:active={viewMode === 'list'}
+					aria-pressed={viewMode === 'list'}
+					aria-label="List view"
+					onclick={() => setView('list')}
+				>
+					<svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true">
+						<path
+							d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"
+							stroke="currentColor"
+							stroke-width="1.8"
+							stroke-linecap="round"
+						/>
+					</svg>
+				</button>
+			</div>
 		</div>
 
 		{#if activeChips.length > 0}
@@ -176,10 +250,24 @@
 				<p>Try a different search or clear your filters.</p>
 			</div>
 		{:else}
-			<div class="grid" bind:this={resultsEl}>
+			<div class="grid" bind:this={gridEl}>
 				{#each results as entry, index (entry.slug)}
 					<PackageCard {entry} {index} />
 				{/each}
+			</div>
+			<div class="list">
+				<div class="list-head" aria-hidden="true">
+					<span>Package</span>
+					<span>Description</span>
+					<span class="r">Version</span>
+					<span class="r">Size</span>
+					<span>Arch</span>
+				</div>
+				<div class="list-rows" bind:this={listEl}>
+					{#each results as entry, index (entry.slug)}
+						<PackageRow {entry} {index} />
+					{/each}
+				</div>
 			</div>
 		{/if}
 	</section>
@@ -303,10 +391,95 @@
 		color: var(--text-muted);
 	}
 
+	.view-toggle {
+		display: inline-flex;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		overflow: hidden;
+	}
+
+	.view-toggle button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 30px;
+		color: var(--text-muted);
+		background: var(--surface);
+		border: none;
+		transition:
+			color var(--transition),
+			background var(--transition);
+	}
+
+	.view-toggle button + button {
+		border-left: 1px solid var(--border);
+	}
+
+	.view-toggle button:hover {
+		color: var(--text-dim);
+	}
+
+	.view-toggle button.active {
+		color: var(--accent-strong);
+		background: var(--accent-soft);
+	}
+
 	.grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
 		gap: 14px;
+	}
+
+	/* Layout is chosen by the pre-paint `data-view` attribute to avoid a flash;
+	   the default (no attribute / no JS) shows the grid. */
+	.list {
+		display: none;
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+		overflow: hidden;
+	}
+
+	:global(html[data-view='list']) .grid {
+		display: none;
+	}
+
+	:global(html[data-view='list']) .list {
+		display: block;
+	}
+
+	/* Column template must match PackageRow. */
+	.list-head {
+		display: grid;
+		grid-template-columns: minmax(195px, 1.2fr) minmax(0, 2.4fr) 96px 76px 120px;
+		gap: 18px;
+		padding: 10px 18px;
+		font-family: var(--font-mono);
+		font-size: 0.68rem;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: var(--text-muted);
+		background: var(--surface-2);
+		border-bottom: 1px solid var(--border);
+	}
+
+	.list-head .r {
+		text-align: right;
+	}
+
+	.list-rows :global(.row:last-child) {
+		border-bottom: none;
+	}
+
+	@media (max-width: 720px) {
+		.list-head {
+			grid-template-columns: 1fr auto;
+		}
+
+		.list-head span:nth-child(2),
+		.list-head span:nth-child(3) {
+			display: none;
+		}
 	}
 
 	.empty {
