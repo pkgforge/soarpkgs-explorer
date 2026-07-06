@@ -36,6 +36,15 @@
 
 	onMount(initView);
 
+	// Lock background scroll while the mobile filters drawer is open.
+	$effect(() => {
+		if (!browser) return;
+		document.body.style.overflow = filtersOpen ? 'hidden' : '';
+		return () => {
+			document.body.style.overflow = '';
+		};
+	});
+
 	const facetConfig: {
 		key: FacetKey;
 		title: string;
@@ -83,6 +92,10 @@
 
 	// Keyboard navigation: Arrow keys move focus through results, Enter opens.
 	function onKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape' && filtersOpen) {
+			filtersOpen = false;
+			return;
+		}
 		if (!results.length || event.metaKey || event.ctrlKey || event.altKey) return;
 		const active = document.activeElement as HTMLElement | null;
 		const inSearch = active?.getAttribute('type') === 'search';
@@ -123,12 +136,37 @@
 <svelte:window onkeydown={onKeydown} />
 
 <div class="browse">
+	{#if filtersOpen}
+		<button
+			type="button"
+			class="scrim"
+			aria-label="Close filters"
+			onclick={() => (filtersOpen = false)}
+		></button>
+	{/if}
 	<aside class="sidebar" class:open={filtersOpen}>
 		<div class="sidebar-head">
 			<h2>Filters</h2>
-			{#if filterCount > 0}
-				<button type="button" class="clear" onclick={clearFilters}>Clear ({filterCount})</button>
-			{/if}
+			<div class="sidebar-actions">
+				{#if filterCount > 0}
+					<button type="button" class="clear" onclick={clearFilters}>Clear ({filterCount})</button>
+				{/if}
+				<button
+					type="button"
+					class="drawer-close"
+					aria-label="Close filters"
+					onclick={() => (filtersOpen = false)}
+				>
+					<svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
+						<path
+							d="m6 6 12 12M18 6 6 18"
+							stroke="currentColor"
+							stroke-width="1.8"
+							stroke-linecap="round"
+						/>
+					</svg>
+				</button>
+			</div>
 		</div>
 		{#each facetConfig as facet (facet.key)}
 			{#if facet.options.length > 0}
@@ -315,6 +353,12 @@
 		font-size: 0.95rem;
 	}
 
+	.sidebar-actions {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+	}
+
 	.clear {
 		font-size: 0.78rem;
 		color: var(--accent-strong);
@@ -324,6 +368,23 @@
 
 	.clear:hover {
 		text-decoration: underline;
+	}
+
+	/* Drawer affordances, shown only on mobile. */
+	.scrim {
+		display: none;
+	}
+
+	.drawer-close {
+		display: none;
+		align-items: center;
+		justify-content: center;
+		width: 30px;
+		height: 30px;
+		color: var(--text-dim);
+		background: var(--surface-2);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
 	}
 
 	.toolbar {
@@ -527,18 +588,43 @@
 			display: inline-block;
 		}
 
+		.scrim {
+			display: block;
+			position: fixed;
+			inset: 0;
+			z-index: 55;
+			padding: 0;
+			background: rgb(0 0 0 / 0.5);
+			border: none;
+			animation: scrim-in 160ms ease;
+		}
+
 		.sidebar {
-			display: none;
-			position: static;
+			position: fixed;
+			inset: 0 auto 0 0;
+			z-index: 60;
+			width: min(320px, 84vw);
+			max-height: none;
+			padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
+			background: var(--surface);
+			border-right: 1px solid var(--border);
+			transform: translateX(-100%);
+			transition: transform 220ms ease;
 		}
 
 		.sidebar.open {
-			display: block;
-			margin-bottom: 8px;
-			padding: 4px 14px 14px;
-			background: var(--surface);
-			border: 1px solid var(--border);
-			border-radius: var(--radius);
+			transform: translateX(0);
+			box-shadow: 10px 0 40px rgb(0 0 0 / 0.28);
+		}
+
+		.drawer-close {
+			display: inline-flex;
+		}
+	}
+
+	@keyframes scrim-in {
+		from {
+			opacity: 0;
 		}
 	}
 
