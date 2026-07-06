@@ -3,11 +3,19 @@
 	import { base } from '$app/paths';
 	import { page } from '$app/state';
 	import { datasetMeta } from '$lib/catalog';
+	import { onMount } from 'svelte';
 	import ThemeToggle from './ThemeToggle.svelte';
 
 	let input = $state<HTMLInputElement | null>(null);
 	let query = $state('');
+	let scrolled = $state(false);
 	let timer: ReturnType<typeof setTimeout> | undefined;
+
+	function onScroll() {
+		scrolled = window.scrollY > 2;
+	}
+
+	onMount(onScroll);
 
 	const home = `${base}/`;
 	const onHome = $derived(page.url.pathname === home);
@@ -62,9 +70,9 @@
 	}
 </script>
 
-<svelte:window onkeydown={onKeydown} />
+<svelte:window onkeydown={onKeydown} onscroll={onScroll} />
 
-<header class="site-header">
+<header class="site-header" class:scrolled>
 	<div class="container bar">
 		<a class="brand" href="/">
 			<span class="prompt">$</span>
@@ -107,6 +115,16 @@
 		background: color-mix(in srgb, var(--bg) 86%, transparent);
 		backdrop-filter: saturate(1.4) blur(10px);
 		border-bottom: 1px solid var(--border);
+		transition:
+			border-color var(--transition),
+			box-shadow var(--transition);
+	}
+
+	.site-header.scrolled {
+		border-bottom-color: var(--border-strong);
+		box-shadow:
+			0 1px 0 var(--border),
+			0 6px 20px rgb(0 0 0 / 0.06);
 	}
 
 	.bar {
