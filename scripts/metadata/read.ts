@@ -87,7 +87,13 @@ const QUERY = `
 function parseArray<T>(value: string | null): T[] {
 	if (!value) return [];
 	const parsed = JSON.parse(value) as unknown;
-	return Array.isArray(parsed) ? (parsed.filter((v) => v != null) as T[]) : [];
+	if (!Array.isArray(parsed)) return [];
+	const cleaned = parsed.filter((v) => v != null);
+	// Dedupe primitive arrays (tags, categories, urls, ...); leave objects intact.
+	if (cleaned.every((v) => typeof v !== 'object')) {
+		return [...new Set(cleaned)] as T[];
+	}
+	return cleaned as T[];
 }
 
 function toBool(value: number | null): boolean | null {
