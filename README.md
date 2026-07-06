@@ -1,42 +1,36 @@
-# sv
+# soarpkgs explorer
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+A fast, statically generated web explorer for [soarpkgs](https://github.com/pkgforge/soarpkgs).
 
-## Creating a project
+The build downloads the signed SQLite metadata published on soarpkgs releases,
+verifies its minisign signature, and prerenders the site with SvelteKit. There
+is no server and no database at runtime.
 
-If you're seeing this, you've probably already done this step. Congrats!
+## Requirements
 
-```sh
-# create a new project
-npx sv create my-app
-```
+- [Bun](https://bun.sh) (pinned in `mise.toml`)
 
-To recreate this project with the same configuration:
+Signature verification and SQLite reading use Bun's built-ins and pure-JS
+libraries, so no additional command-line tooling is required.
 
-```sh
-# recreate this project
-bun x sv@0.16.2 create --template minimal --types ts --add prettier sveltekit-adapter="adapter:static" --no-download-check --install bun .
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+## Scripts
 
 ```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+bun install       # install dependencies
+bun run data      # download + verify metadata, generate the dataset
+bun run dev       # start the dev server
+bun run build     # regenerate data, then build the static site to build/
+bun run preview   # preview the production build
+bun run check     # type-check
+bun run format    # format with prettier
 ```
 
-## Building
+`bun run data` writes the generated dataset to `src/lib/generated/`
+(git-ignored). Set `SOARPKGS_RELEASE` to a release tag to pin a specific
+metadata snapshot; otherwise the latest release is used.
 
-To create a production version of your app:
+## Tech
 
-```sh
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+- SvelteKit + `@sveltejs/adapter-static`, fully prerendered
+- Bun toolchain (`bun:sqlite` for build-time reads)
+- Deploys to Cloudflare Pages
