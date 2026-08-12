@@ -8,7 +8,6 @@
 		formatSize,
 		hostLabel,
 		installCommand,
-		resolveVersion,
 		runCommand
 	} from '$lib/format';
 	import type { PageData } from './$types';
@@ -16,20 +15,41 @@
 	let { data }: { data: PageData } = $props();
 
 	const pkg = $derived(data.pkg);
-	const primaryBuild = $derived(pkg.builds[pkg.arches[0]]);
 	const hasChecksums = $derived(pkg.arches.some((a) => pkg.builds[a]?.bsum));
 
-	// Version is usually shared across arches; fall back to "varies" if not.
-	const versions = $derived([
-		...new Set(pkg.arches.map((a) => pkg.builds[a]?.version).filter(Boolean))
-	]);
-	const versionLabel = $derived(versions.length === 1 ? versions[0] : 'varies');
-	// Most recent build across all architectures.
-	const lastBuilt = $derived.by(() => {
-		const dates = pkg.arches.map((a) => pkg.builds[a]?.build_date).filter((d): d is string => !!d);
-		return dates.length ? dates.reduce((a, b) => (a > b ? a : b)) : null;
+	/**
+	 * Every version soarpkgs publishes, newest first.
+	 *
+	 * An older one is still installable, so it is worth offering rather than
+	 * only naming: `soar install name@version` asks for it directly.
+	 */
+	const allVersions = $derived.by(() => {
+		const seen = new Set<string>();
+		const out: string[] = [];
+		for (const arch of pkg.arches) {
+			const build = pkg.builds[arch];
+			if (!build) continue;
+			for (const v of [build.version, ...build.other_versions.map((o) => o.version)]) {
+				if (v && !seen.has(v)) {
+					seen.add(v);
+					out.push(v);
+				}
+			}
+		}
+		return out;
 	});
 
+	let chosenVersion = $state('');
+	// Start on the newest, and land back on it if the package changes under
+	// us. Anything the reader picked is left alone while it still exists.
+	$effect(() => {
+		if (!allVersions.includes(chosenVersion)) chosenVersion = allVersions[0] ?? '';
+	});
+	const selected = $derived(
+		allVersions.includes(chosenVersion) ? chosenVersion : (allVersions[0] ?? '')
+	);
+	// The newest needs no version on the command; an older one does.
+	const isNewest = $derived(selected === allVersions[0]);
 	// Deterministic hue so each package gets a stable identicon colour.
 	const hue = $derived.by(() => {
 		let h = 0;
@@ -46,41 +66,25 @@
 	const links = $derived.by(() => {
 		const candidates = [
 			...pkg.homepages.map((url) => ({ url, label: hostLabel(url) })),
-			...pkg.source_urls.map((url) => ({ url, label: `Source · ${hostLabel(url)}` })),
-			primaryBuild?.webpage ? { url: primaryBuild.webpage, label: 'Package page' } : null,
-			primaryBuild?.ghcr_url ? { url: primaryBuild.ghcr_url, label: 'Container (GHCR)' } : null,
-			primaryBuild?.build_script ? { url: primaryBuild.build_script, label: 'Build recipe' } : null
+			...pkg.source_urls.map((url) => ({ url, label: `Source · ${hostLabel(url)}` }))
 		].filter((l): l is { url: string; label: string } => l !== null);
 		// A URL can appear as both homepage and source; show it only once.
 		const seen = new Set<string>();
 		return candidates.filter((l) => (seen.has(l.url) ? false : seen.add(l.url)));
 	});
 
-	// Older versions still installable, unified across architectures.
-	const snapshotRows = $derived.by(() => {
-		const current = new Set(pkg.arches.map((a) => pkg.builds[a]?.version));
-		const seen = new Set<string>();
-		const versions: string[] = [];
-		for (const arch of pkg.arches) {
-			for (const v of pkg.builds[arch]?.snapshots ?? []) {
-				if (!current.has(v) && !seen.has(v)) {
-					seen.add(v);
-					versions.push(v);
-				}
-			}
-		}
-		return versions.map((version) => ({
-			version,
-			downloads: pkg.arches.map((arch) => {
-				const build = pkg.builds[arch];
-				const available = !!build && build.snapshots.includes(version);
-				return {
-					arch,
-					url: available ? resolveVersion(build.download_url_template, version) : null
-				};
-			})
-		}));
-	});
+	/** The download for each architecture at the version the reader picked. */
+	const downloads = $derived(
+		pkg.arches.map((arch) => {
+			const build = pkg.builds[arch];
+			if (!build) return { arch, download: null };
+			const download =
+				build.version === selected
+					? build
+					: (build.other_versions.find((o) => o.version === selected) ?? null);
+			return { arch, download };
+		})
+	);
 
 	function browseLink(param: string, value: string): string {
 		return `${base}/?${param}=${encodeURIComponent(value)}`;
@@ -106,25 +110,17 @@
 				{#if pkg.pkg_type}
 					<a class="badge accent" href={browseLink('type', pkg.pkg_type)}>{pkg.pkg_type}</a>
 				{/if}
-				{#if pkg.portable}<span class="badge">portable</span>{/if}
-				{#if pkg.desktop_integration}<span class="badge">desktop</span>{/if}
 			</div>
 			{#if pkg.description}
 				<p class="desc">{pkg.description}</p>
 			{/if}
-			<p class="ids">
-				<span class="k">pkg_id</span> <code>{pkg.pkg_id}</code>
-				{#if pkg.pkg_family && pkg.pkg_family !== pkg.pkg_name}
-					<span class="sep">·</span> <span class="k">family</span> <code>{pkg.pkg_family}</code>
-				{/if}
-			</p>
 		</div>
 	</header>
 
 	<div class="stats">
 		<div class="stat">
 			<span class="stat-k">Version</span>
-			<span class="stat-v">{versionLabel}</span>
+			<span class="stat-v">{selected}</span>
 		</div>
 		<div class="stat">
 			<span class="stat-k">Architectures</span>
@@ -136,19 +132,29 @@
 				<span class="stat-v">{pkg.licenses.join(', ')}</span>
 			</div>
 		{/if}
-		{#if lastBuilt}
-			<div class="stat">
-				<span class="stat-k">Last built</span>
-				<span class="stat-v">{formatDate(lastBuilt)}</span>
-			</div>
-		{/if}
 	</div>
 
 	<section class="install">
-		<h2>Install</h2>
-		<CopyCommand command={installCommand(pkg)} />
+		<div class="install-head">
+			<h2>Install</h2>
+			{#if allVersions.length > 1}
+				<label class="version-pick">
+					<span class="version-pick-k">Version</span>
+					<select
+						value={selected}
+						onchange={(e) => (chosenVersion = e.currentTarget.value)}
+						aria-label="Version to install"
+					>
+						{#each allVersions as v, i (v)}
+							<option value={v}>{v}{i === 0 ? ' (latest)' : ''}</option>
+						{/each}
+					</select>
+				</label>
+			{/if}
+		</div>
+		<CopyCommand command={isNewest ? installCommand(pkg) : `${installCommand(pkg)}@${selected}`} />
 		<p class="run-hint">Or run it once without installing:</p>
-		<CopyCommand command={runCommand(pkg)} />
+		<CopyCommand command={isNewest ? runCommand(pkg) : `${runCommand(pkg)}@${selected}`} />
 	</section>
 
 	<div class="columns">
@@ -156,27 +162,29 @@
 			<section>
 				<h2>Downloads</h2>
 				<div class="builds">
-					{#each pkg.arches as arch (arch)}
-						{@const build = pkg.builds[arch]}
+					{#each downloads as { arch, download } (arch)}
 						<div class="build">
 							<div class="build-top">
 								<code class="b-arch">{archLabel(arch)}</code>
-								{#if build}<span class="b-ver">{build.version}</span>{/if}
-								{#if build?.download_url}
-									<a class="b-dl" href={build.download_url} rel="noreferrer nofollow">Download</a>
+								<span class="b-ver">{selected}</span>
+								{#if download}
+									<a class="b-dl" href={download.download_url} rel="noreferrer nofollow">Download</a
+									>
+								{:else}
+									<span class="b-na">Not published</span>
 								{/if}
 							</div>
-							<div class="build-meta">
-								<span>{formatSize(build?.size ?? null)}</span>
-								<span class="dot">·</span>
-								<span>built {formatDate(build?.build_date ?? null)}</span>
-							</div>
-							{#if build?.bsum}
-								<div class="bsum">
-									<span class="bsum-k">b3sum</span>
-									<code class="bsum-v" title={build.bsum}>{build.bsum}</code>
-									<CopyButton text={build.bsum} label="Copy checksum" />
+							{#if download}
+								<div class="build-meta">
+									<span>{formatSize(download.size)}</span>
 								</div>
+								{#if download.bsum}
+									<div class="bsum">
+										<span class="bsum-k">b3sum</span>
+										<code class="bsum-v" title={download.bsum}>{download.bsum}</code>
+										<CopyButton text={download.bsum} label="Copy checksum" />
+									</div>
+								{/if}
 							{/if}
 						</div>
 					{/each}
@@ -187,40 +195,6 @@
 					</p>
 				{/if}
 			</section>
-
-			{#if snapshotRows.length > 0}
-				<section>
-					<h2>Previous versions</h2>
-					<div class="table-wrap">
-						<table>
-							<thead>
-								<tr>
-									<th>Version</th>
-									{#each pkg.arches as arch (arch)}
-										<th>{archLabel(arch)}</th>
-									{/each}
-								</tr>
-							</thead>
-							<tbody>
-								{#each snapshotRows as row (row.version)}
-									<tr>
-										<td><code>{row.version}</code></td>
-										{#each row.downloads as dl (dl.arch)}
-											<td>
-												{#if dl.url}
-													<a href={dl.url} rel="noreferrer nofollow">Download</a>
-												{:else}
-													<span class="na">—</span>
-												{/if}
-											</td>
-										{/each}
-									</tr>
-								{/each}
-							</tbody>
-						</table>
-					</div>
-				</section>
-			{/if}
 
 			{#if pkg.notes.length > 0}
 				<section>
@@ -251,14 +225,6 @@
 						<dd class="chips">
 							{#each pkg.categories as c (c)}
 								<a class="chip" href={browseLink('cat', c)}>{c}</a>
-							{/each}
-						</dd>
-					{/if}
-					{#if pkg.tags.length > 0}
-						<dt>Tags</dt>
-						<dd class="chips">
-							{#each pkg.tags as t (t)}
-								<a class="chip" href={browseLink('tag', t)}>{t}</a>
 							{/each}
 						</dd>
 					{/if}
@@ -300,7 +266,8 @@
 
 <style>
 	.detail {
-		max-width: 960px;
+		max-width: 1200px;
+		padding-top: 28px;
 	}
 
 	.back {
@@ -377,25 +344,37 @@
 		margin: 10px 0 0;
 		font-size: 1.02rem;
 		color: var(--text-dim);
+		/* The page is wide for the columns below; a sentence should not be. */
+		max-width: 68ch;
 	}
 
-	.ids {
-		margin: 10px 0 0;
-		font-size: 0.8rem;
-		color: var(--text-muted);
+	.install-head {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 12px;
+		flex-wrap: wrap;
 	}
 
-	.ids .k {
-		font-family: var(--font-mono);
+	.version-pick {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		font-size: 0.85rem;
 	}
 
-	.ids code {
+	.version-pick-k {
 		color: var(--text-dim);
 	}
 
-	.ids .sep {
-		margin: 0 6px;
-		opacity: 0.5;
+	.version-pick select {
+		font: inherit;
+		font-family: var(--font-mono);
+		color: var(--text);
+		background: var(--bg-soft, transparent);
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+		padding: 4px 8px;
 	}
 
 	.stats {
@@ -491,6 +470,12 @@
 		color: var(--text-muted);
 	}
 
+	.b-na {
+		margin-left: auto;
+		font-size: 0.8rem;
+		color: var(--text-muted);
+	}
+
 	.b-dl {
 		margin-left: auto;
 		padding: 4px 12px;
@@ -512,10 +497,6 @@
 		font-family: var(--font-mono);
 		font-size: 0.76rem;
 		color: var(--text-muted);
-	}
-
-	.build-meta .dot {
-		opacity: 0.5;
 	}
 
 	.bsum {
@@ -543,43 +524,6 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-	}
-
-	.table-wrap {
-		overflow-x: auto;
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-	}
-
-	table {
-		width: 100%;
-		border-collapse: collapse;
-		font-size: 0.88rem;
-	}
-
-	th {
-		font-family: var(--font-mono);
-		font-size: 0.72rem;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: var(--text-muted);
-		text-align: left;
-		font-weight: 500;
-	}
-
-	th,
-	td {
-		padding: 10px 14px;
-		border-bottom: 1px solid var(--border);
-		white-space: nowrap;
-	}
-
-	tbody tr:last-child td {
-		border-bottom: none;
-	}
-
-	.na {
-		color: var(--text-muted);
 	}
 
 	.notes {

@@ -27,41 +27,33 @@ export interface ArchBuild {
 	version: string;
 	size: number | null;
 	download_url: string;
-	/** Raw download URL with a `{{version}}` placeholder, for resolving snapshots. */
-	download_url_template: string;
-	webpage: string | null;
-	ghcr_pkg: string | null;
-	ghcr_url: string | null;
-	ghcr_size: number | null;
-	ghcr_blob: string | null;
 	bsum: string | null;
-	build_id: string | null;
-	build_date: string | null;
-	build_script: string | null;
-	/** Older versions still installable for this architecture. */
-	snapshots: string[];
+	/** Other versions soarpkgs publishes, newest first, excluding this one. */
+	other_versions: OtherVersion[];
+}
+
+/** An older published version, enough to install and verify it. */
+export interface OtherVersion {
+	version: string;
+	size: number | null;
+	download_url: string;
+	bsum: string | null;
 }
 
 /** A canonical package, merged across the architectures it is available for. */
 export interface Package {
 	slug: string;
 	pkg_name: string;
-	pkg_id: string;
-	pkg_family: string | null;
 	pkg_type: string | null;
-	app_id: string | null;
 	description: string | null;
 	homepages: string[];
 	source_urls: string[];
 	licenses: string[];
 	categories: string[];
-	tags: string[];
 	notes: string[];
 	provides: Provide[];
 	maintainers: Maintainer[];
 	replaces: string[];
-	desktop_integration: boolean | null;
-	portable: boolean | null;
 	arches: Arch[];
 	builds: Partial<Record<Arch, ArchBuild>>;
 }
@@ -70,23 +62,19 @@ export interface Package {
 export interface SearchEntry {
 	slug: string;
 	name: string;
-	id: string;
 	type: string | null;
 	description: string | null;
 	categories: string[];
-	tags: string[];
 	maintainers: string[];
 	arches: Arch[];
 	version: string;
 	size: number | null;
-	updated: string | null;
 }
 
 /** Precomputed facet values for filtering the listing. */
 export interface Facets {
 	types: string[];
 	categories: string[];
-	tags: string[];
 	maintainers: string[];
 	arches: Arch[];
 }

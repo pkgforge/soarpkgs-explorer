@@ -3,19 +3,11 @@
 	import { base } from '$app/paths';
 	import { page } from '$app/state';
 	import { datasetMeta } from '$lib/catalog';
-	import { onMount } from 'svelte';
 	import ThemeToggle from './ThemeToggle.svelte';
 
 	let input = $state<HTMLInputElement | null>(null);
 	let query = $state('');
-	let scrolled = $state(false);
 	let timer: ReturnType<typeof setTimeout> | undefined;
-
-	function onScroll() {
-		scrolled = window.scrollY > 2;
-	}
-
-	onMount(onScroll);
 
 	const home = `${base}/`;
 	const onHome = $derived(page.url.pathname === home);
@@ -70,9 +62,9 @@
 	}
 </script>
 
-<svelte:window onkeydown={onKeydown} onscroll={onScroll} />
+<svelte:window onkeydown={onKeydown} />
 
-<header class="site-header" class:scrolled>
+<header class="site-header">
 	<div class="container bar">
 		<a class="brand" href="/">
 			<span class="prompt">$</span>
@@ -109,8 +101,8 @@
 
 <style>
 	.site-header {
-		position: sticky;
-		top: 0;
+		position: relative;
+		flex-shrink: 0;
 		z-index: 50;
 		background: color-mix(in srgb, var(--bg) 86%, transparent);
 		backdrop-filter: saturate(1.4) blur(10px);
@@ -120,7 +112,20 @@
 			box-shadow var(--transition);
 	}
 
-	.site-header.scrolled {
+	/* Reading progress, drawn over the header's own bottom border. It stands in
+	   for the scrollbar, which the content area hides. */
+	.site-header::after {
+		content: '';
+		position: absolute;
+		inset-inline: 0;
+		bottom: -1px;
+		height: 2px;
+		background: var(--accent);
+		transform: scaleX(var(--scroll-progress, 0));
+		transform-origin: left;
+	}
+
+	:global(html[data-scrolled]) .site-header {
 		border-bottom-color: var(--border-strong);
 		box-shadow:
 			0 1px 0 var(--border),

@@ -5,7 +5,7 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="text-scale" content="scale" />
 		<script>
-			// Apply persisted theme and view before first paint to avoid a flash.
+			// Apply the persisted theme before first paint to avoid a flash.
 			(function () {
 				try {
 					var stored = localStorage.getItem('theme');
@@ -13,9 +13,11 @@
 					var theme = stored === 'light' || stored === 'dark' ? stored : dark ? 'dark' : 'light';
 					document.documentElement.dataset.theme = theme;
 					document.documentElement.style.colorScheme = theme;
-					document.documentElement.dataset.view =
-						localStorage.getItem('view') === 'list' ? 'list' : 'grid';
 				} catch (e) {}
+				// The prerendered listing is the unfiltered one; a query in the
+				// URL is only applied once the app hydrates. Hold the listing
+				// back until then rather than flashing the wrong results.
+				if (location.search) document.documentElement.dataset.pending = '';
 			})();
 		</script>
 		%sveltekit.head%

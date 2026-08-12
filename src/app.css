@@ -8,7 +8,7 @@
 
 	--radius: 10px;
 	--radius-sm: 7px;
-	--container: 1120px;
+	--container: 1600px;
 	--header-h: 56px;
 	--footer-h: 46px;
 
@@ -116,7 +116,10 @@ html {
 
 body {
 	margin: 0;
-	min-height: 100dvh;
+	/* The shell is fixed and only the content area scrolls, so the header and
+	   footer never move and nothing reflows as the scrollbar comes and goes. */
+	height: 100dvh;
+	overflow: hidden;
 	display: flex;
 	flex-direction: column;
 	font-family: var(--font-sans);
