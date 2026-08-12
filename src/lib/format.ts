@@ -18,6 +18,17 @@ export function installCommand(pkg: PackageRef): string {
 	return `soar install ${packageRef(pkg)}`;
 }
 
+/**
+ * A `soar://` link that hands the package to a local soar.
+ *
+ * soar refuses anything outside a plain package query, so the reference is
+ * passed through as-is rather than escaped into something it would reject.
+ */
+export function soarLink(pkg: PackageRef, version?: string): string {
+	const ref = packageRef(pkg);
+	return `soar://install/${version ? `${ref}@${version}` : ref}`;
+}
+
 /** The `soar run` command (runs without installing to PATH). */
 export function runCommand(pkg: PackageRef): string {
 	return `soar run ${packageRef(pkg)}`;

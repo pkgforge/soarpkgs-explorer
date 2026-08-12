@@ -8,7 +8,8 @@
 		formatSize,
 		hostLabel,
 		installCommand,
-		runCommand
+		runCommand,
+		soarLink
 	} from '$lib/format';
 	import type { PageData } from './$types';
 
@@ -152,7 +153,14 @@
 				</label>
 			{/if}
 		</div>
-		<CopyCommand command={isNewest ? installCommand(pkg) : `${installCommand(pkg)}@${selected}`} />
+		<CopyCommand
+			command={isNewest ? installCommand(pkg) : `${installCommand(pkg)}@${selected}`}
+			action={{
+				href: soarLink(pkg, isNewest ? undefined : selected),
+				label: 'Install',
+				hint: 'Hands this to your local soar, which asks before installing'
+			}}
+		/>
 		<p class="run-hint">Or run it once without installing:</p>
 		<CopyCommand command={isNewest ? runCommand(pkg) : `${runCommand(pkg)}@${selected}`} />
 	</section>

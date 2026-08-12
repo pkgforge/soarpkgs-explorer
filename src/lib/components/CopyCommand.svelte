@@ -1,5 +1,13 @@
 <script lang="ts">
-	let { command }: { command: string } = $props();
+	interface Action {
+		href: string;
+		label: string;
+		hint: string;
+	}
+
+	// An optional action that carries out the command, shown beside the copy
+	// button because it belongs to the command rather than to the page.
+	let { command, action }: { command: string; action?: Action } = $props();
 
 	let copied = $state(false);
 	let timer: ReturnType<typeof setTimeout> | undefined;
@@ -19,6 +27,20 @@
 <div class="cmd">
 	<span class="prompt">$</span>
 	<code>{command}</code>
+	{#if action}
+		<a class="act" href={action.href} title={action.hint}>
+			<svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true">
+				<path
+					d="M12 4v11m0 0 4-4m-4 4-4-4M5 19h14"
+					stroke="currentColor"
+					stroke-width="1.7"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				/>
+			</svg>
+			{action.label}
+		</a>
+	{/if}
 	<button type="button" onclick={copy} aria-label="Copy install command">
 		{#if copied}
 			<svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true">
@@ -79,7 +101,8 @@
 		font-size: 0.9rem;
 	}
 
-	button {
+	button,
+	.act {
 		display: inline-flex;
 		align-items: center;
 		gap: 6px;
@@ -95,8 +118,14 @@
 			border-color var(--transition);
 	}
 
-	button:hover {
+	button:hover,
+	.act:hover {
 		color: var(--accent-strong);
 		border-color: var(--border-strong);
+		text-decoration: none;
+	}
+
+	.act {
+		color: var(--accent);
 	}
 </style>
