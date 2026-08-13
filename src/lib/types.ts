@@ -6,7 +6,7 @@
  */
 
 /** Supported target architectures, matching soarpkgs release asset names. */
-export type Arch = 'x86_64-linux' | 'aarch64-linux';
+export type Arch = 'x86_64-linux' | 'aarch64-linux' | 'riscv64-linux';
 
 /** A program produced by a package. */
 export interface Provide {
