@@ -22,7 +22,7 @@
 	 * Every version soarpkgs publishes, newest first.
 	 *
 	 * An older one is still installable, so it is worth offering rather than
-	 * only naming: `soar install name@version` asks for it directly.
+	 * only naming: `soar install name@version:soarpkgs` asks for it directly.
 	 */
 	const allVersions = $derived.by(() => {
 		const seen = new Set<string>();
@@ -154,7 +154,7 @@
 			{/if}
 		</div>
 		<CopyCommand
-			command={isNewest ? installCommand(pkg) : `${installCommand(pkg)}@${selected}`}
+			command={installCommand(pkg, isNewest ? undefined : selected)}
 			action={{
 				href: soarLink(pkg, isNewest ? undefined : selected),
 				label: 'Install',
@@ -162,7 +162,7 @@
 			}}
 		/>
 		<p class="run-hint">Or run it once without installing:</p>
-		<CopyCommand command={isNewest ? runCommand(pkg) : `${runCommand(pkg)}@${selected}`} />
+		<CopyCommand command={runCommand(pkg, isNewest ? undefined : selected)} />
 	</section>
 
 	<div class="columns">

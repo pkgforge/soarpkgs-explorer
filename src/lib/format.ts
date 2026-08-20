@@ -3,19 +3,24 @@ import type { Arch, Package } from '$lib/types';
 
 type PackageRef = Pick<Package, 'pkg_name'>;
 
+/** Name of the soar repository these packages come from. */
+const REPO = 'soarpkgs';
+
 /**
  * How soar is asked for this package.
  *
- * A name is enough: soarpkgs no longer publishes the family or id that the
- * `family/name` and `name#id` forms disambiguated with.
+ * The name carries the `:soarpkgs` suffix so the query still resolves for
+ * people who have other repositories enabled. A name is otherwise enough:
+ * soarpkgs no longer publishes the family or id that the `family/name` and
+ * `name#id` forms disambiguated with.
  */
-export function packageRef(pkg: PackageRef): string {
-	return pkg.pkg_name;
+export function packageRef(pkg: PackageRef, version?: string): string {
+	return `${pkg.pkg_name}${version ? `@${version}` : ''}:${REPO}`;
 }
 
 /** The `soar install` command for a package. */
-export function installCommand(pkg: PackageRef): string {
-	return `soar install ${packageRef(pkg)}`;
+export function installCommand(pkg: PackageRef, version?: string): string {
+	return `soar install ${packageRef(pkg, version)}`;
 }
 
 /**
@@ -25,13 +30,12 @@ export function installCommand(pkg: PackageRef): string {
  * passed through as-is rather than escaped into something it would reject.
  */
 export function soarLink(pkg: PackageRef, version?: string): string {
-	const ref = packageRef(pkg);
-	return `soar://install/${version ? `${ref}@${version}` : ref}`;
+	return `soar://install/${packageRef(pkg, version)}`;
 }
 
 /** The `soar run` command (runs without installing to PATH). */
-export function runCommand(pkg: PackageRef): string {
-	return `soar run ${packageRef(pkg)}`;
+export function runCommand(pkg: PackageRef, version?: string): string {
+	return `soar run ${packageRef(pkg, version)}`;
 }
 
 /** Format a byte count as a compact human-readable size. */
