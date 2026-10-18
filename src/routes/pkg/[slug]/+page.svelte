@@ -1,5 +1,7 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
 	import { base } from '$app/paths';
+	import { page } from '$app/state';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import CopyCommand from '$lib/components/CopyCommand.svelte';
 	import Seo from '$lib/components/Seo.svelte';
@@ -137,7 +139,7 @@
 </svelte:head>
 
 <article class="detail">
-	<a class="back" href="{base}/">← All packages</a>
+	<a class="back" href="{base}/{page.url.search}">← All packages</a>
 
 	<header class="hero">
 		<div class="icon" style="--hue: {hue}" aria-hidden="true">{initial}</div>

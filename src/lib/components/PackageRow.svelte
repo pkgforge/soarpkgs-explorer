@@ -1,11 +1,13 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
 	import { base } from '$app/paths';
+	import { page } from '$app/state';
 	import { archLabel, formatSize } from '$lib/format';
 	import type { SearchEntry } from '$lib/types';
 
 	let { entry, index }: { entry: SearchEntry; index: number } = $props();
 
-	const href = $derived(`${base}/pkg/${entry.slug}/`);
+	const href = $derived(`${base}/pkg/${entry.slug}/${page.url.search}`);
 </script>
 
 <a class="row" {href} data-result={index} tabindex={index === 0 ? 0 : -1}>
