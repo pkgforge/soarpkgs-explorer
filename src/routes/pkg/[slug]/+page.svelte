@@ -139,7 +139,7 @@
 </svelte:head>
 
 <article class="detail">
-	<a class="back" href="{base}/{page.url.search}">← All packages</a>
+	<a class="back" href="{base}/{browser ? page.url.search : ""}">← All packages</a>
 
 	<header class="hero">
 		<div class="icon" style="--hue: {hue}" aria-hidden="true">{initial}</div>
