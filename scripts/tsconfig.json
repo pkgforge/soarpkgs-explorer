@@ -1,0 +1,10 @@
+// Type-checks the Bun build scripts, which svelte-check does not cover.
+// Scripts are plain Bun code with no SvelteKit runtime, so they get their own
+// program instead of being folded into the app's generated config.
+{
+	"extends": "../tsconfig.json",
+	"compilerOptions": {
+		"types": ["bun"]
+	},
+	"include": ["**/*.ts"]
+}

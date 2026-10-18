@@ -16,11 +16,6 @@ export function allPackages(): Package[] {
 	return packages;
 }
 
-/** Every package slug, for prerender entry generation. */
-export function packageSlugs(): string[] {
-	return packages.map((pkg) => pkg.slug);
-}
-
 /** Look up a package by its slug. */
 export function packageBySlug(slug: string): Package | undefined {
 	return bySlug.get(slug);

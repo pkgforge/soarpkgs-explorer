@@ -6,8 +6,7 @@
 		description,
 		path,
 		image = '/og.png',
-		imageAlt,
-		ogType = 'website'
+		imageAlt
 	}: {
 		title: string;
 		description: string;
@@ -16,7 +15,6 @@
 		image?: string;
 		/** Alt text for the card; defaults to the site's tagline. */
 		imageAlt?: string;
-		ogType?: 'website' | 'article';
 	} = $props();
 
 	const url = $derived(absoluteUrl(path));
@@ -36,7 +34,7 @@
 	<meta property="og:site_name" content={SITE_NAME} />
 	<meta property="og:title" content={title} />
 	<meta property="og:description" content={description} />
-	<meta property="og:type" content={ogType} />
+	<meta property="og:type" content="website" />
 	<meta property="og:url" content={url} />
 	<meta property="og:image" content={imageUrl} />
 	<meta property="og:image:width" content="1200" />

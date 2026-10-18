@@ -5,8 +5,11 @@
  * metadata pipeline and consumed by the app when prerendering pages.
  */
 
-/** Supported target architectures, matching soarpkgs release asset names. */
-export type Arch = 'x86_64-linux' | 'aarch64-linux' | 'riscv64-linux';
+/** Supported target architectures, in display order, matching soarpkgs release asset names. */
+export const ARCHES = ['x86_64-linux', 'aarch64-linux', 'riscv64-linux'] as const;
+
+/** Supported target architectures. */
+export type Arch = (typeof ARCHES)[number];
 
 /** A program produced by a package. */
 export interface Provide {
@@ -33,12 +36,7 @@ export interface ArchBuild {
 }
 
 /** An older published version, enough to install and verify it. */
-export interface OtherVersion {
-	version: string;
-	size: number | null;
-	download_url: string;
-	bsum: string | null;
-}
+export type OtherVersion = Omit<ArchBuild, 'other_versions'>;
 
 /** A canonical package, merged across the architectures it is available for. */
 export interface Package {

@@ -1,6 +1,6 @@
 /** Read and normalize packages from a soarpkgs metadata database. */
 import { Database } from 'bun:sqlite';
-import type { Arch, ArchBuild, Maintainer, Provide } from '../../src/lib/types.ts';
+import type { Arch, Maintainer, OtherVersion, Provide } from '../../src/lib/types.ts';
 
 /** One published version of a package, for one architecture. */
 export interface ArchPackageRow {
@@ -16,7 +16,7 @@ export interface ArchPackageRow {
 	provides: Provide[];
 	maintainers: Maintainer[];
 	replaces: string[];
-	build: ArchBuild;
+	build: OtherVersion;
 }
 
 interface RawRow {
@@ -98,7 +98,7 @@ export function readArch(dbPath: string, arch: Arch, warnings: Set<string>): Arc
 		const rows = db.query(QUERY).all() as RawRow[];
 		return rows.map((r) => {
 			const version = r.version;
-			const build: ArchBuild = {
+			const build: OtherVersion = {
 				version,
 				size: r.size,
 				download_url: resolvePlaceholders(r.download_url, version, warnings) ?? r.download_url,

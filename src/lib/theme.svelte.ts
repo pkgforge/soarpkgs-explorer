@@ -26,7 +26,7 @@ export function getTheme(): Theme {
 }
 
 /** Set, apply, and persist the theme. */
-export function setTheme(next: Theme): void {
+function setTheme(next: Theme): void {
 	theme = next;
 	document.documentElement.dataset.theme = next;
 	document.documentElement.style.colorScheme = next;

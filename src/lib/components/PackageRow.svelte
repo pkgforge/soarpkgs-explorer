@@ -7,7 +7,7 @@
 
 	let { entry, index }: { entry: SearchEntry; index: number } = $props();
 
-	const href = $derived(`${base}/pkg/${entry.slug}/${browser ? page.url.search : ""}`);
+	const href = $derived(`${base}/pkg/${entry.slug}/${browser ? page.url.search : ''}`);
 </script>
 
 <a class="row" {href} data-result={index} tabindex={index === 0 ? 0 : -1}>

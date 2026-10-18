@@ -8,7 +8,7 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Arch, DatasetMeta, Facets, Package, SearchEntry } from '../../src/lib/types.ts';
-import { ARCHES, GENERATED_DIR } from './config.ts';
+import { ARCHES, GENERATED_DIR, sdbAsset } from './config.ts';
 import { fetchVerifiedDatabase, resolveRelease } from './fetch.ts';
 import { readArch, type ArchPackageRow } from './read.ts';
 
@@ -91,12 +91,7 @@ function mergePackages(rows: ArchPackageRow[]): Package[] {
 		pkg.arches.push(arch);
 		pkg.builds[arch] = {
 			...newest.build,
-			other_versions: older.map((row) => ({
-				version: row.build.version,
-				size: row.build.size,
-				download_url: row.build.download_url,
-				bsum: row.build.bsum
-			}))
+			other_versions: older.map((row) => row.build)
 		};
 	}
 
@@ -173,7 +168,7 @@ async function main(): Promise<void> {
 	const rows: ArchPackageRow[] = [];
 	const presentArches: Arch[] = [];
 	for (const arch of ARCHES) {
-		if (!release.assets.has(`metadata-${arch}.sdb`)) {
+		if (!release.assets.has(sdbAsset(arch))) {
 			console.warn(`no metadata asset for ${arch}, skipping`);
 			continue;
 		}

@@ -8,8 +8,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 /** Repository root, resolved relative to this file. */
 export const repoRoot = join(here, '..', '..');
 
-/** Architectures to include, in display order. */
-export const ARCHES: Arch[] = ['x86_64-linux', 'aarch64-linux', 'riscv64-linux'];
+export { ARCHES } from '../../src/lib/types.ts';
 
 /** GitHub repository publishing the signed metadata releases. */
 export const RELEASE_REPO = 'pkgforge/soarpkgs';

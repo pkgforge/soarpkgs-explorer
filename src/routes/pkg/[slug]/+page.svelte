@@ -8,7 +8,6 @@
 	import { datasetMeta } from '$lib/catalog';
 	import {
 		archLabel,
-		formatDate,
 		formatSize,
 		hostLabel,
 		installCommand,
@@ -73,7 +72,7 @@
 		const candidates = [
 			...pkg.homepages.map((url) => ({ url, label: hostLabel(url) })),
 			...pkg.source_urls.map((url) => ({ url, label: `Source · ${hostLabel(url)}` }))
-		].filter((l): l is { url: string; label: string } => l !== null);
+		];
 		// A URL can appear as both homepage and source; show it only once.
 		const seen = new Set<string>();
 		return candidates.filter((l) => (seen.has(l.url) ? false : seen.add(l.url)));
@@ -139,7 +138,7 @@
 </svelte:head>
 
 <article class="detail">
-	<a class="back" href="{base}/{browser ? page.url.search : ""}">← All packages</a>
+	<a class="back" href="{base}/{browser ? page.url.search : ''}">← All packages</a>
 
 	<header class="hero">
 		<div class="icon" style="--hue: {hue}" aria-hidden="true">{initial}</div>
