@@ -3,19 +3,11 @@ import type { Arch, Package } from '$lib/types';
 
 type PackageRef = Pick<Package, 'pkg_name'>;
 
-/** Name of the soar repository these packages come from. */
-const REPO = 'soarpkgs';
-
 /**
  * How soar is asked for this package.
- *
- * The name carries the `:soarpkgs` suffix so the query still resolves for
- * people who have other repositories enabled. A name is otherwise enough:
- * soarpkgs no longer publishes the family or id that the `family/name` and
- * `name#id` forms disambiguated with.
  */
 export function packageRef(pkg: PackageRef, version?: string): string {
-	return `${pkg.pkg_name}${version ? `@${version}` : ''}:${REPO}`;
+	return `${pkg.pkg_name}${version ? `@${version}` : ''}`;
 }
 
 /** The `soar install` command for a package. */

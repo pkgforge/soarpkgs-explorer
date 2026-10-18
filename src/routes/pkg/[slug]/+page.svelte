@@ -27,7 +27,7 @@
 	 * Every version soarpkgs publishes, newest first.
 	 *
 	 * An older one is still installable, so it is worth offering rather than
-	 * only naming: `soar install name@version:soarpkgs` asks for it directly.
+	 * only naming: `soar install name@version` asks for it directly.
 	 */
 	const allVersions = $derived.by(() => {
 		const seen = new Set<string>();
