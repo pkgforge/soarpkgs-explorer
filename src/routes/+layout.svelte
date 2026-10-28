@@ -33,8 +33,11 @@
 		root.style.setProperty('--scroll-progress', travel > 0 ? String(el.scrollTop / travel) : '0');
 	}
 
-	// Smooth cross-fade between pages where the browser supports it.
+	// Smooth cross-fade between pages where the browser supports it. Same-page
+	// navigations are the listing rewriting its query on every keystroke or
+	// filter toggle, and cross-fading those leaves stale rows ghosting through.
 	onNavigate((navigation) => {
+		if (navigation.from?.url.pathname === navigation.to?.url.pathname) return;
 		const startViewTransition = document.startViewTransition?.bind(document);
 		if (!startViewTransition) return;
 		return new Promise((resolve) => {
